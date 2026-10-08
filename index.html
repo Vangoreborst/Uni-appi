@@ -37,10 +37,14 @@ nav .fab{background:var(--ac);color:#10143a;border-radius:50%;width:56px;height:
 #toast{position:fixed;left:50%;bottom:100px;transform:translateX(-50%);background:var(--ok);color:#06231a;padding:10px 18px;border-radius:20px;font-weight:600;opacity:0;transition:.3s;z-index:20;pointer-events:none}#toast.on{opacity:1}
 .empty{text-align:center;color:var(--mu);padding:24px 8px}
 @media(prefers-reduced-motion:reduce){*{animation:none!important}}
+#clock{position:fixed;inset:0;background:rgba(5,8,25,.7);display:none;z-index:30;align-items:center;justify-content:center}#clock.on{display:flex}#clock>div{background:var(--bg2);border-radius:24px;padding:18px;width:min(92vw,340px)}
+.ch{font:600 46px Georgia,serif;text-align:center;margin-bottom:6px}.ch span{padding:0 8px;opacity:.45}.ch .on{opacity:1;color:var(--ac)}#dial{width:100%;display:block;touch-action:none;user-select:none}
+.tbtn{width:100%;padding:13px;border-radius:12px;border:1px solid var(--ln);background:var(--bg);color:var(--tx);font:600 20px Georgia,serif}
 </style></head><body>
 <main id="app"></main>
 <nav id="nav"></nav>
 <div id="sheet"><div id="form"></div></div>
+<div id="clock"><div><div class="ch" id="chd"></div><svg id="dial" viewBox="0 0 240 240"></svg><div class="row" style="margin-top:8px"><button class="btn g" style="margin:0" onclick="nudge(-1)">−1 min</button><button class="btn g" style="margin:0" onclick="nudge(1)">+1 min</button></div><div class="row"><button class="btn g" onclick="$('clock').classList.remove('on')">Peruuta</button><button class="btn" onclick="okClock()">OK</button></div></div></div>
 <div id="toast"></div>
 <script>
 const $=id=>document.getElementById(id),K='zzz_v2';
@@ -100,8 +104,23 @@ $('form').innerHTML=`<h1>${id?'Muokkaa merkintää':'Lisää uni'}</h1><div clas
 <label>Oma arvio tunneista (tyhjä = lasketaan ajoista)</label><input type="number" step="0.1" min="0" id="f_h" value="${x.est||''}"><label>Kommentti</label><textarea id="f_c" rows="2">${esc(x.comment)}</textarea>
 <button class="btn" onclick="saveE('${id||''}')">Tallenna</button><button class="btn g" onclick="closeF()">Peruuta</button>`;window.curT=x.type;$('sheet').classList.add('on')}
 const p2=n=>String(n).padStart(2,'0');
-function tp(id,v){const[h,m]=(v||'00:00').split(':').map(Number),o=(n,s)=>Array.from({length:n},(_,i)=>`<option value="${p2(i)}"${i===s?' selected':''}>${p2(i)}</option>`).join('');return `<div class="tp"><select id="${id}h">${o(24,h)}</select>:<select id="${id}m">${o(60,m)}</select></div>`}
-const tv=id=>$(id+'h').value+':'+$(id+'m').value;
+const tp=(id,v)=>`<button type="button" class="tbtn" id="${id}" data-v="${v||'00:00'}" onclick="openClock('${id}')">${v||'00:00'}</button>`;
+const tv=id=>$(id).dataset.v;
+let CK={};
+function openClock(id){const[h,m]=tv(id).split(':').map(Number);CK={id,h:h||0,m:m||0,mode:'h'};drawClock();$('clock').classList.add('on')}
+function drawClock(){const{h,m,mode}=CK,pos=(i,r)=>[120+r*Math.sin(i*Math.PI/6),120-r*Math.cos(i*Math.PI/6)],hr=mode==='h';
+const sel=hr?h%12:m/5,sr=hr?((h>=1&&h<=12)?95:62):95,[sx,sy]=pos(sel,sr);
+let s=`<circle cx="120" cy="120" r="116" fill="var(--bg)"/><line x1="120" y1="120" x2="${sx}" y2="${sy}" stroke="var(--ac)" stroke-width="2"/><circle cx="120" cy="120" r="4" fill="var(--ac)"/><circle cx="${sx}" cy="${sy}" r="${hr&&sr===62?16:19}" fill="var(--ac)"/>`;
+const t=(x,y,l,on,sz)=>`<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central" style="font:${sz}px system-ui;fill:${on?'#10143a':'var(--tx)'}">${l}</text>`;
+if(hr)for(let i=1;i<=12;i++){let[a,b]=pos(i%12,95),[c,d]=pos(i%12,62);s+=t(a,b,i,h===i,17)+t(c,d,i===12?'00':i+12,h===(i===12?0:i+12),13)}
+else for(let k=0;k<12;k++){const[a,b]=pos(k,95);s+=t(a,b,p2(k*5),m===k*5,17)}
+$('dial').innerHTML=s;$('chd').innerHTML=`<span class="${hr?'on':''}" onclick="CK.mode='h';drawClock()">${p2(h)}</span>:<span class="${hr?'':'on'}" onclick="CK.mode='m';drawClock()">${p2(m)}</span>`}
+function pick(e){const d=$('dial'),r=d.getBoundingClientRect(),dx=e.clientX-r.left-r.width/2,dy=e.clientY-r.top-r.height/2,dist=Math.hypot(dx,dy)*240/r.width,ang=(Math.atan2(dx,-dy)*180/Math.PI+360)%360,i=Math.round(ang/30)%12;
+if(CK.mode==='h')CK.h=dist>78?(i===0?12:i):(i===0?0:i+12);else CK.m=i*5;drawClock()}
+const dl=$('dial');dl.addEventListener('pointerdown',e=>{CK.d=true;dl.setPointerCapture(e.pointerId);pick(e)});dl.addEventListener('pointermove',e=>{if(CK.d)pick(e)});
+dl.addEventListener('pointerup',()=>{CK.d=false;if(CK.mode==='h'){CK.mode='m';drawClock()}});
+const nudge=d=>{CK.m=(CK.m+d+60)%60;CK.mode='m';drawClock()};
+function okClock(){const v=p2(CK.h)+':'+p2(CK.m),b=$(CK.id);b.dataset.v=v;b.textContent=v;$('clock').classList.remove('on')}
 const edit=id=>openForm(id),closeF=()=>$('sheet').classList.remove('on');
 function pickT(b){window.curT=b.dataset.ty;document.querySelectorAll('[data-ty]').forEach(e=>e.classList.toggle('g',e!==b))}
 function saveE(id){const est=parseFloat($('f_h').value),s=tv('f_s'),e=tv('f_e');if(!$('f_d').value||!s||!e)return alert('Täytä päivä sekä nukkumaan- ja heräämisaika.');
