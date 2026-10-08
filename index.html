@@ -23,6 +23,7 @@ svg text{fill:var(--mu);font:10px system-ui}
 label{display:block;font-size:13px;color:var(--mu);margin:12px 0 4px}
 input,select,textarea{width:100%;padding:13px;border-radius:12px;border:1px solid var(--ln);background:var(--bg);color:var(--tx);font:16px system-ui}
 input[type=range]{padding:0;accent-color:var(--ac)}
+.tp{display:flex;align-items:center;gap:4px}.tp select{padding:13px 4px;text-align:center;text-align-last:center;min-width:0;flex:1}
 .btn{border:0;border-radius:14px;padding:14px;font:600 16px system-ui;background:var(--ac);color:#10143a;width:100%;margin-top:12px}.btn.g{background:var(--bg);color:var(--tx);border:1px solid var(--ln)}.btn.d{background:var(--bad);color:#fff}
 .it{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--ln)}.it:last-child{border:0}
 .it .e{font-size:26px}.it .m{flex:1;min-width:0}.it .m div{font-size:13px;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -93,14 +94,17 @@ const go=v=>{st.v=v;render();scrollTo(0,0)};
 /* form */
 function openForm(id){const x=id?st.e.find(e=>e.id===id):{date:iso(new Date()),start:'23:00',end:'07:00',type:'Yöuni',rating:6,wakeups:0,awake:0,comment:'',est:''};
 $('form').innerHTML=`<h1>${id?'Muokkaa merkintää':'Lisää uni'}</h1><div class="row" style="margin-top:8px">${['Yöuni','Päiväuni','Torkku'].map(t=>`<button class="btn ${x.type===t?'':'g'}" style="margin:0;padding:10px" data-ty="${t}" onclick="pickT(this)">${t}</button>`).join('')}</div>
-<label>Herätyspäivä</label><input type="date" id="f_d" value="${x.date}"><div class="row"><div><label>Nukkumaan</label><input type="time" id="f_s" value="${x.start}"></div><div><label>Heräsin</label><input type="time" id="f_e" value="${x.end}"></div></div>
+<label>Herätyspäivä</label><input type="date" id="f_d" value="${x.date}"><div class="row"><div><label>Nukkumaan</label>${tp('f_s',x.start)}</div><div><label>Heräsin</label>${tp('f_e',x.end)}</div></div>
 <label>Arvosana: <b id="rv">${x.rating} ${emo(x.rating)}</b></label><input type="range" id="f_r" min="0" max="10" value="${x.rating}" oninput="rv.innerHTML=this.value+' '+emo(+this.value)">
 <div class="row"><div><label>Heräilyt</label><input type="number" id="f_w" min="0" value="${x.wakeups}"></div><div><label>Hereillä (min)</label><input type="number" id="f_a" min="0" value="${x.awake}"></div></div>
 <label>Oma arvio tunneista (tyhjä = lasketaan ajoista)</label><input type="number" step="0.1" min="0" id="f_h" value="${x.est||''}"><label>Kommentti</label><textarea id="f_c" rows="2">${esc(x.comment)}</textarea>
 <button class="btn" onclick="saveE('${id||''}')">Tallenna</button><button class="btn g" onclick="closeF()">Peruuta</button>`;window.curT=x.type;$('sheet').classList.add('on')}
+const p2=n=>String(n).padStart(2,'0');
+function tp(id,v){const[h,m]=(v||'00:00').split(':').map(Number),o=(n,s)=>Array.from({length:n},(_,i)=>`<option value="${p2(i)}"${i===s?' selected':''}>${p2(i)}</option>`).join('');return `<div class="tp"><select id="${id}h">${o(24,h)}</select>:<select id="${id}m">${o(60,m)}</select></div>`}
+const tv=id=>$(id+'h').value+':'+$(id+'m').value;
 const edit=id=>openForm(id),closeF=()=>$('sheet').classList.remove('on');
 function pickT(b){window.curT=b.dataset.ty;document.querySelectorAll('[data-ty]').forEach(e=>e.classList.toggle('g',e!==b))}
-function saveE(id){const est=parseFloat($('f_h').value),s=$('f_s').value,e=$('f_e').value;if(!$('f_d').value||!s||!e)return alert('Täytä päivä sekä nukkumaan- ja heräämisaika.');
+function saveE(id){const est=parseFloat($('f_h').value),s=tv('f_s'),e=tv('f_e');if(!$('f_d').value||!s||!e)return alert('Täytä päivä sekä nukkumaan- ja heräämisaika.');
 const o={id:id||Date.now().toString(36),date:$('f_d').value,start:s,end:e,type:window.curT,rating:+$('f_r').value,wakeups:+$('f_w').value||0,awake:+$('f_a').value||0,comment:$('f_c').value,est:est||'',hours:est>0?est:hrs(s,e)};
 if(id)st.e[st.e.findIndex(x=>x.id===id)]=o;else st.e.push(o);save();closeF();render();toast('Tallennettu ✓')}
 function del(id){if(confirm('Poistetaanko merkintä?')){st.e=st.e.filter(x=>x.id!==id);save();render()}}
